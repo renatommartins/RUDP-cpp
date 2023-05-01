@@ -2,6 +2,7 @@
 
 #include "socket.hpp"
 
+//TODO: review this implementation, "ret" variable is not used and it doesn't seem right
 bool socket_isSocketPendingBytes(int socket, int timeoutSeconds)
 {
     fd_set rfd;
