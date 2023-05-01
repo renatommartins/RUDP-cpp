@@ -12,7 +12,7 @@ struct packet
     uint16_t sequenceNumber;
     uint16_t ackSequenceNumber;
     union {
-        uint32_t ackBitfield;
+        uint8_t ackBytes[4];
         struct {
             bool ack1 : 1; bool ack2 : 1; bool ack3 : 1; bool ack4 : 1;
             bool ack5 : 1; bool ack6 : 1; bool ack7 : 1; bool ack8 : 1;
