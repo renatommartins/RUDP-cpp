@@ -1,5 +1,11 @@
-#include <winsock2.h>
+#include <cstdlib>
 #include <cstring>
+
+#if WIN32
+#include <winsock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 #include "utils/crc32.hpp"
 #include "utils/portability.hpp"

@@ -2,7 +2,6 @@
 #define EXAMPLE01_MAIN_H
 
 #include <iostream>
-#include <winsock.h>
 #include <cstdint>
 #include <vector>
 #include <span>

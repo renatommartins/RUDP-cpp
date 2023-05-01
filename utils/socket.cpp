@@ -1,4 +1,12 @@
+#if WIN32
 #include <winsock2.h>
+#else
+#include <cstddef>
+//#include <unistd.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#endif
+
 
 #include "socket.hpp"
 

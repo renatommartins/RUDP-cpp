@@ -1,5 +1,3 @@
-#include <winsock2.h>
-
 #include "main.hpp"
 
 using std::cout;
