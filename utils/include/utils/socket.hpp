@@ -1,0 +1,4 @@
+#ifndef UTILS_SOCKET_HPP
+#define UTILS_SOCKET_HPP
+
+#endif //UTILS_SOCKET_HPP

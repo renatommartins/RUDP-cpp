@@ -1,6 +1,7 @@
 add_library(utils
         crc32.cpp
-        portability.cpp)
+        portability.cpp
+        socket.cpp)
 
 target_include_directories(utils PRIVATE include/utils)
 target_include_directories(utils INTERFACE include)
