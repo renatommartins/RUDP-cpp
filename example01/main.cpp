@@ -1,3 +1,9 @@
+#include <iostream>
+#include <vector>
+#include <span>
+
+#include "rudplib/packet.hpp"
+
 #include "main.hpp"
 
 using std::cout;
