@@ -13,6 +13,7 @@ struct packet
     uint16_t ackSequenceNumber;
     union {
         uint8_t ackBytes[4];
+//TODO: create class for bit field with indexer operator overload
         struct {
             bool ack1 : 1; bool ack2 : 1; bool ack3 : 1; bool ack4 : 1;
             bool ack5 : 1; bool ack6 : 1; bool ack7 : 1; bool ack8 : 1;
@@ -27,6 +28,7 @@ struct packet
             bool ack29 : 1; bool ack30 : 1; bool ack31 : 1; bool ack32 : 1;
         } bits;
     };
+//TODO: Create class enum for type
     uint16_t type;
     uint8_t data[];
 
