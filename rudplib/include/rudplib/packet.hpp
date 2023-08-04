@@ -3,17 +3,19 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
+#include <memory>
+
+#include "PacketType.hpp"
 
 #pragma pack(push, 1)
-struct packet
-{
-    size_t dataLength;
-    uint16_t appId;
-    uint16_t sequenceNumber;
-    uint16_t ackSequenceNumber;
+struct Packet {
+    uint16_t app_id;
+    uint16_t sequence_number;
+    uint16_t ack_sequence_number;
     union {
-        uint8_t ackBytes[4];
-//TODO: create class for bit field with indexer operator overload
+		uint32_t ack;
+        uint8_t ack_bytes[4];
         struct {
             bool ack1 : 1; bool ack2 : 1; bool ack3 : 1; bool ack4 : 1;
             bool ack5 : 1; bool ack6 : 1; bool ack7 : 1; bool ack8 : 1;
@@ -28,15 +30,33 @@ struct packet
             bool ack29 : 1; bool ack30 : 1; bool ack31 : 1; bool ack32 : 1;
         } bits;
     };
-//TODO: Create class enum for type
-    uint16_t type;
+	union
+	{
+		PacketType type;
+		uint16_t type_int;
+	};
+	uint16_t data_length;
     uint8_t data[];
+	// CRC32 comes after the data bytes.
 
-    static struct packet* deserialize(std::span<uint8_t> buffer);
-    size_t serialize(std::span<std::uint8_t> buffer);
-    size_t size();
+	static const size_t kMinPacketSize =
+		sizeof(app_id) +
+		sizeof(sequence_number) +
+		sizeof(ack_sequence_number) +
+		sizeof(ack_bytes) +
+		sizeof(type) +
+		sizeof(data_length);
+
+	[[nodiscard]] static std::unique_ptr<const Packet> CreatePacket(
+			uint16_t app_id,
+			uint16_t sequence_number,
+			uint16_t ack_sequence_number,
+			uint32_t ack,
+			PacketType type,
+			std::span<uint8_t> data);
+    [[nodiscard]] static std::unique_ptr<const Packet> Deserialize(std::span<uint8_t> buffer);
+	[[nodiscard]] static std::vector<uint8_t> Serialize(std::unique_ptr<const Packet> &packet);
+    [[nodiscard]] size_t Size() const;
 };
 #pragma pack(pop)
-
 #endif //RUDPLIB_PACKET_HPP
-
