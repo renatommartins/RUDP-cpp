@@ -11,7 +11,7 @@ bool rudp::utils::socket::isSocketPendingBytes(SOCKET socket, int timeoutSeconds
 		.tv_usec = 0,
 	};
 
-	select(socket + 1, &rfd, nullptr, nullptr, &timeout);
+	int ret = select(socket + 1, &rfd, nullptr, nullptr, &timeout);
 
 	return FD_ISSET(socket, &rfd)? true : false;
 }
