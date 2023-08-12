@@ -11,7 +11,13 @@
 
 namespace rudp {
 #pragma pack(push, 1)
+#pragma warning(push)
+#pragma warning(disable : 4200) // Suppressing warning for zero-sized array in struct/union (warning C4200)
 	struct Packet {
+	private:
+		Packet(Packet const& value);
+		Packet& operator=(Packet const& value);
+	public:
 		uint16_t app_id;
 		uint16_t sequence_number;
 		uint16_t ack_sequence_number;
@@ -62,6 +68,7 @@ namespace rudp {
 
 		[[nodiscard]] size_t Size() const;
 	};
+#pragma warning(pop)
 #pragma pack(pop)
 }
 
