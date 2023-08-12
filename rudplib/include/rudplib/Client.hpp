@@ -25,9 +25,6 @@
 namespace rudp {
 	class Client {
 	private:
-		static constexpr size_t kReceiveBufferSize = 1024 * 4;
-		static constexpr size_t kSendBufferSize = 1024 * 4;
-
 		std::jthread connection_thread;
 
 		uint16_t application_id;
@@ -40,8 +37,6 @@ namespace rudp {
 		int current_rtt;
 		sockaddr local_endpoint;
 		sockaddr remote_endpoint;
-		rudp::utils::chrono::time_point_ms last_time_point;
-		rudp::utils::chrono::time_point_ms next_time_point;
 
 		uint16_t next_sequence_number;
 
@@ -69,7 +64,7 @@ namespace rudp {
 
 		//int Bind(const sockaddr &endpoint);
 
-		int ConnectAndStart(const sockaddr &local, const sockaddr &remote); //TODO: define parameters
+		int Start(const sockaddr &local, const sockaddr &remote); //TODO: define parameters
 
 		void Close();
 

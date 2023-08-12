@@ -62,14 +62,11 @@ namespace rudp {
 		return bind_result;
 	}*/
 
-	int Client::ConnectAndStart(const sockaddr &local, const sockaddr &remote) {
+	int Client::Start(const sockaddr &local, const sockaddr &remote) {
 		local_endpoint = local;
 		remote_endpoint = remote;
 
 		connection_thread = std::jthread{ConnectionUpdate, this};
-
-		//TODO: do error checking in open result
-		//TODO: start connection handshake
 
 		return 0;
 	}
@@ -100,15 +97,12 @@ namespace rudp {
 	}
 
 	void Client::ConnectionUpdate(const std::stop_token stop_token, Client* const client) {
-		/*rudp::utils::chrono::time_point_ms now_ms = rudp::utils::chrono::GetTimePointNowMs();
-		if (now_ms < next_time_point)
-			return next_time_point - now_ms;*/
-
 		const auto& application_id = client->application_id;
 		auto& local_endpoint = client->local_endpoint;
 		auto& remote_endpoint = client->remote_endpoint;
 
 		auto& network_transceiver = client->network_transceiver;
+		auto& state = client->state;
 		auto& receive_queue = client->receive_queue;
 		auto& send_queue = client->send_queue;
 		auto& current_rtt = client->current_rtt;
@@ -142,8 +136,11 @@ namespace rudp {
 				Packet::Serialize(connection_packet);
 
 			network_transceiver->Transmit(serialized_connection_packet);
+			state = ClientState::Connecting;
 			auto request_expire_time =
 				rudp::utils::chrono::GetTimePointNowMs() + 1000ms;
+
+
 			while (!stop_token.stop_requested()) {
 				if(request_expire_time < rudp::utils::chrono::GetTimePointNowMs()){ return; }
 
@@ -153,9 +150,14 @@ namespace rudp {
 				}
 
 				auto connection_reply_packet = ReceivePacket(client);
-				if (connection_reply_packet == nullptr) { return; }
-				if (connection_reply_packet->type != PacketType::ConnectionAccept){ return; }
 
+				if (connection_reply_packet == nullptr ||
+					connection_reply_packet->type != PacketType::ConnectionAccept) {
+					state = ClientState::Disconnected;
+					return;
+				}
+
+				state = ClientState::Connected;
 				break;
 			}
 		}
@@ -178,6 +180,7 @@ namespace rudp {
 						while(!send_queue.empty())
 							send_queue.pop();
 						network_transceiver->Close();
+						state = ClientState::Disconnected;
 						break;
 					}
 					default:
@@ -212,9 +215,6 @@ namespace rudp {
 					PacketType::Data,
 					std::optional<std::vector<uint8_t>>{send_packet_data});
 			}
-			else if(false) { //TODO: set boolean when closing connection to send disconnection notify
-
-			}
 			else {
 				send_packet = Packet::CreatePacket(
 					application_id,
@@ -243,13 +243,10 @@ namespace rudp {
 
 			auto send_data = Packet::Serialize(disconnect_packet);
 			network_transceiver->Transmit(send_data);
+			state = ClientState::Disconnected;
 		}
 
 		auto close_result = network_transceiver->Close();
-
-		/*last_time_point = next_time_point;
-		next_time_point = next_time_point + 20ms; //TODO: make update rate changeable
-		return 20ms;*/
 	}
 
 	std::unique_ptr<const Packet> Client::ReceivePacket(Client* const client) {
