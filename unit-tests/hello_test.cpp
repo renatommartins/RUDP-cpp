@@ -1,3 +1,5 @@
+#include <optional>
+
 #include <gtest/gtest.h>
 
 #include "rudplib/Packet.hpp"
@@ -23,16 +25,18 @@ TEST(Packet, SerializeDeserialize) {
 
 	std::span<uint8_t> rawSpan{expectedMemory};
 	auto ack = *reinterpret_cast<uint32_t*>(&expectedMemory[6]);
-	auto dataSpan = std::span<uint8_t>{&expectedMemory[12], 8};
+	auto dataVector = std::vector<uint8_t>{
+		expectedMemory.begin() + 12,
+		expectedMemory.end() - 4};
 
-	auto createdPacket = Packet::CreatePacket(
+	auto createdPacket = rudp::Packet::CreatePacket(
 			21930u,
 			43605,
 			21930,
 			ack,
-			PacketType::Data,
-			dataSpan);
+			rudp::PacketType::Data,
+			std::optional<std::vector<uint8_t>>{dataVector});
 
-	auto serializedPacket = Packet::Serialize(createdPacket);
-	auto deserializedPacket = Packet::Deserialize(serializedPacket);
+	auto serializedPacket = rudp::Packet::Serialize(createdPacket);
+	auto deserializedPacket = rudp::Packet::Deserialize(serializedPacket);
 }

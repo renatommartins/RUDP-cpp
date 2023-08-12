@@ -2,15 +2,15 @@
 #define RUDPLIB_PACKETTYPE_HPP
 
 #include <cstdint>
-
-enum class PacketType : uint16_t {
-	ConnectionRequest,
-	ConnectionAccept,
-	ConnectionRefuse,
-	DisconnectionNotify,
-	KeepAlive,
-	Data,
-	Invalid,
-};
-
+namespace rudp {
+	enum class PacketType : uint16_t {
+		ConnectionRequest,
+		ConnectionAccept,
+		ConnectionRefuse,
+		DisconnectionNotify,
+		KeepAlive,
+		Data,
+		Invalid,
+	};
+}
 #endif //RUDPLIB_PACKETTYPE_HPP

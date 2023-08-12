@@ -2,7 +2,7 @@
 #include <vector>
 #include <span>
 
-#include "rudplib/packet.hpp"
+#include "rudplib/Packet.hpp"
 
 #include "main.hpp"
 
@@ -26,32 +26,32 @@ int main() {
     };
     std::span<uint8_t> rawSpan{expectedMemory};
 
-    auto testPacket = reinterpret_cast<struct packet*>(malloc(sizeof(struct packet) + 8 + sizeof(uint32_t)));
-    testPacket->dataLength = 8;
-    testPacket->appId = 0x55AA;
-    testPacket->sequenceNumber = 0xAA55;
-    testPacket->ackSequenceNumber = 0x55AA;
-    testPacket->ackBytes[0] = 0xAA; testPacket->ackBytes[1] = 0x55;
-    testPacket->ackBytes[2] = 0xAA; testPacket->ackBytes[3] = 0x55;
+    auto testPacket = reinterpret_cast<struct Packet*>(malloc(sizeof(struct Packet) + 8 + sizeof(uint32_t)));
+    testPacket->data_length = 8;
+    testPacket->app_id = 0x55AA;
+    testPacket->sequence_number = 0xAA55;
+    testPacket->ack_sequence_number = 0x55AA;
+    testPacket->ack_bytes[0] = 0xAA; testPacket->ack_bytes[1] = 0x55;
+    testPacket->ack_bytes[2] = 0xAA; testPacket->ack_bytes[3] = 0x55;
     testPacket->type = 5;
     testPacket->data[0] = 0x55; testPacket->data[1] = 0xAA; testPacket->data[2] = 0x55; testPacket->data[3] = 0xAA;
     testPacket->data[4] = 0x55; testPacket->data[5] = 0xAA; testPacket->data[6] = 0x55; testPacket->data[7] = 0xAA;
 
-    auto rawPacket{packet::deserialize(rawSpan)};
+    auto rawPacket{Packet::Deserialize(rawSpan)};
 
     uint8_t serializeBuffer[64]{0};
-    auto serializedSize = testPacket->serialize(std::span<uint8_t>(serializeBuffer, sizeof(serializeBuffer)));
+    auto serializedSize = testPacket->Serialize(std::span<uint8_t>(serializeBuffer, sizeof(serializeBuffer)));
 
     cout << std::hex;
     for(const auto &byte : rawSpan)
         cout << static_cast<int>(byte) << ':';
     cout << " - rawSpan" << endl;
 
-    for(const auto &byte : std::span<uint8_t>(reinterpret_cast<uint8_t*>(&testPacket->appId), testPacket->size()))
+    for(const auto &byte : std::span<uint8_t>(reinterpret_cast<uint8_t*>(&testPacket->app_id), testPacket->Size()))
         cout << static_cast<int>(byte) << ':';
     cout << " - testPacket (memory)" << endl;
 
-    for(const auto &byte : std::span<uint8_t>(reinterpret_cast<uint8_t*>(&rawPacket->appId), testPacket->size()))
+    for(const auto &byte : std::span<uint8_t>(reinterpret_cast<uint8_t*>(&rawPacket->app_id), testPacket->Size()))
         cout << static_cast<int>(byte) << ':';
     cout << " - rawPacket (memory)" << endl;
 

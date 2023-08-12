@@ -1,7 +1,8 @@
 add_library(utils STATIC
         crc32.cpp
         portability.cpp
-        socket.cpp)
+        socket.cpp
+        time.cpp)
 
 target_compile_features(utils PRIVATE cxx_std_20)
 

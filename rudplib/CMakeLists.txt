@@ -1,7 +1,13 @@
 add_library(rudplib STATIC
         Packet.cpp
-        server.cpp
-        client.cpp)
+        Server.cpp
+        Client.cpp
+        UdpTranceiver.cpp
+        WinSock2Support.cpp)
+
+if(WIN32)
+target_sources(rudplib PRIVATE WinSock2Support.cpp)
+endif ()
 
 target_compile_features(rudplib PRIVATE cxx_std_20)
 
