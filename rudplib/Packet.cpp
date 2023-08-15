@@ -75,18 +75,10 @@ namespace rudp {
 		packet->ack = ack;
 		packet->type = type;
 
-		switch (type) {
-			case PacketType::Data: {
-				packet->data_length = static_cast<uint16_t>(data.value().size());
-				memcpy(packet->data, data.value().data(), data.value().size());
-				break;
-			}
-			default: {
-				packet->data_length = 0;
-				break;
-			}
+		if (data.has_value()) {
+			packet->data_length = static_cast<uint16_t>(data.value().size());
+			memcpy(packet->data, data.value().data(), data.value().size());
 		}
-
 
 		return packet;
 	}
