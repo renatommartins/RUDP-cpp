@@ -44,24 +44,6 @@ namespace rudp {
 		return remote_endpoint;
 	}
 
-	/*int Client::Bind(const sockaddr &endpoint) {
-		switch(endpoint.sa_family) {
-			case AF_INET:
-			case AF_INET6:
-				break;
-			default:
-				return -1;
-		}
-
-		client_socket = socket(endpoint.sa_family, SOCK_DGRAM, IPPROTO_UDP);
-
-		auto bind_result = bind(client_socket, &endpoint, sizeof(endpoint));
-		if(bind_result == SOCKET_ERROR)
-			return WSAGetLastError();
-
-		return bind_result;
-	}*/
-
 	int Client::Start(const sockaddr &local, const sockaddr &remote) {
 		local_endpoint = local;
 		remote_endpoint = remote;
