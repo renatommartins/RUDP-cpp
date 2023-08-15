@@ -28,7 +28,7 @@ namespace rudp {
 		std::jthread connection_thread;
 
 		uint16_t application_id;
-		std::unique_ptr<NetworkTransceiver> network_transceiver;
+		std::shared_ptr<NetworkTransceiver> network_transceiver;
 		ClientState state;
 		std::queue<std::vector<uint8_t>> receive_queue;
 		std::queue<std::vector<uint8_t>> send_queue;
@@ -45,6 +45,15 @@ namespace rudp {
 
 		uint16_t last_remote_sequence_number;
 		uint32_t remote_acknowledges;
+
+		static void SendPacket(
+				std::shared_ptr<NetworkTransceiver> &network_transceiver,
+				uint16_t app_id,
+				uint16_t sequence_number,
+				uint16_t ack_sequence_number,
+				uint32_t ack,
+				PacketType type,
+				std::optional<std::vector<uint8_t>> data);
 	public:
 		Client(uint16_t application_id);
 

@@ -106,7 +106,8 @@ namespace rudp {
 		}
 
 		{
-			auto connection_packet = Packet::CreatePacket(
+			SendPacket(
+				network_transceiver,
 				application_id,
 				next_sequence_number++,
 				0,
@@ -114,17 +115,13 @@ namespace rudp {
 				PacketType::ConnectionRequest,
 				std::nullopt);
 
-			auto serialized_connection_packet =
-				Packet::Serialize(connection_packet);
-
-			network_transceiver->Transmit(serialized_connection_packet);
 			state = ClientState::Connecting;
 			auto request_expire_time =
 				rudp::utils::chrono::GetTimePointNowMs() + 1000ms;
 
 
 			while (!stop_token.stop_requested()) {
-				if(request_expire_time < rudp::utils::chrono::GetTimePointNowMs()){ return; }
+				if (request_expire_time < rudp::utils::chrono::GetTimePointNowMs()) { return; }
 
 				if (network_transceiver->GetAvailable() == 0) {
 					std::this_thread::yield();
@@ -134,7 +131,7 @@ namespace rudp {
 				auto connection_reply_packet = ReceivePacket(client);
 
 				if (connection_reply_packet == nullptr ||
-					connection_reply_packet->type != PacketType::ConnectionAccept) {
+				    connection_reply_packet->type != PacketType::ConnectionAccept) {
 					state = ClientState::Disconnected;
 					return;
 				}
@@ -145,11 +142,14 @@ namespace rudp {
 		}
 
 		auto next_send_time = rudp::utils::chrono::GetTimePointNowMs();
-		while(!stop_token.stop_requested()) {
+
+		while(state == ClientState::Connected && !stop_token.stop_requested()) {
 			while (network_transceiver->GetAvailable() > 0) {
 				auto received_packet = ReceivePacket(client);
 
 				switch (received_packet->type) {
+					case PacketType::KeepAlive:
+						break;
 					case PacketType::Data: {
 						auto packet_data = std::vector<uint8_t>{
 								received_packet->data,
@@ -165,8 +165,20 @@ namespace rudp {
 						state = ClientState::Disconnected;
 						break;
 					}
-					default:
+					default: {
+						state = ClientState::ForceClose;
+						auto force_close_packet = Packet::CreatePacket(
+							application_id,
+							next_sequence_number++,
+							last_remote_sequence_number,
+							remote_acknowledges,
+							PacketType::DisconnectionNotify,
+							std::nullopt);
+						auto send_data = Packet::Serialize(force_close_packet);
+						network_transceiver->Transmit(send_data);
+
 						break;
+					}
 				}
 			}
 
@@ -176,10 +188,11 @@ namespace rudp {
 			}
 			next_send_time = rudp::utils::chrono::GetTimePointNowMs() + 50ms;
 
-			auto send_sequence_number = next_sequence_number++;
-			std::unique_ptr<const Packet> send_packet = nullptr;
+			PacketType packet_type;
+			std::optional<std::vector<uint8_t>> packet_data;
 
 			if(!send_queue.empty()) {
+				packet_type = PacketType::Data;
 				auto send_packet_data = std::vector<uint8_t>{0};
 
 				while(!send_queue.empty()) {
@@ -189,44 +202,36 @@ namespace rudp {
 					send_packet_data.insert(send_packet_data.end(), data.begin(), data.end());
 				}
 
-				send_packet = Packet::CreatePacket(
-					application_id,
-					send_sequence_number,
-					last_remote_sequence_number,
-					remote_acknowledges,
-					PacketType::Data,
-					std::optional<std::vector<uint8_t>>{send_packet_data});
+				packet_data = std::optional<std::vector<uint8_t>>{send_packet_data};
 			}
 			else {
-				send_packet = Packet::CreatePacket(
-					application_id,
-					send_sequence_number,
-					last_remote_sequence_number,
-					remote_acknowledges,
-					PacketType::KeepAlive,
-					std::nullopt);
+				packet_type = PacketType::KeepAlive;
+				packet_data = std::nullopt;
 			}
 
-			auto send_data = Packet::Serialize(send_packet);
-			network_transceiver->Transmit(send_data);
+			SendPacket(
+				network_transceiver,
+				application_id,
+				next_sequence_number++,
+				last_remote_sequence_number,
+				remote_acknowledges,
+				packet_type,
+				packet_data);
 
 			std::this_thread::sleep_for(10ms);
 		}
 
-		{
-			auto send_sequence_number = next_sequence_number++;
-			auto disconnect_packet = Packet::CreatePacket(
-				application_id,
-				send_sequence_number,
-				last_remote_sequence_number,
-				remote_acknowledges,
-				PacketType::DisconnectionNotify,
-				std::nullopt);
+		SendPacket(
+			network_transceiver,
+			application_id,
+			next_sequence_number++,
+			last_remote_sequence_number,
+			remote_acknowledges,
+			PacketType::DisconnectionNotify,
+			std::nullopt
+		);
 
-			auto send_data = Packet::Serialize(disconnect_packet);
-			network_transceiver->Transmit(send_data);
-			state = ClientState::Disconnected;
-		}
+		state = ClientState::Disconnected;
 
 		auto close_result = network_transceiver->Close();
 	}
@@ -260,5 +265,26 @@ namespace rudp {
 		local_acknowledges = received_packet->ack;
 
 		return received_packet;
+	}
+
+	void Client::SendPacket(
+		std::shared_ptr<NetworkTransceiver> &network_transceiver,
+		uint16_t app_id,
+		uint16_t sequence_number,
+		uint16_t ack_sequence_number,
+		uint32_t ack,
+		PacketType type,
+		std::optional<std::vector<uint8_t>> data) {
+		auto packet = Packet::CreatePacket(
+			app_id,
+			sequence_number,
+			ack_sequence_number,
+			ack,
+			type,
+			std::move(data));
+
+		auto send_data = Packet::Serialize(packet);
+
+		network_transceiver->Transmit(send_data);
 	}
 }
