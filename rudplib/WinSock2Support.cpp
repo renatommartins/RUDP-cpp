@@ -3,6 +3,8 @@
 #include "WinSock2Support.hpp"
 
 namespace rudp {
+	bool WinSock2Support::is_initialized;
+
 	void WinSock2Support::Initialize() {
 		if (is_initialized)
 			return;

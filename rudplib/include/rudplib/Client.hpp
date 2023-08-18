@@ -10,15 +10,9 @@
 #include <thread>
 #include <vector>
 
-#if(WIN32)
-#include <WinSock2.h>
-#endif
-
-#include "utils/time.hpp"
-#include "utils/socket.hpp"
-
 #include "ClientState.hpp"
 #include "PacketResult.hpp"
+#include "NetworkEndpoint.hpp"
 #include "NetworkTranceiver.hpp"
 #include "Packet.hpp"
 
@@ -35,8 +29,8 @@ namespace rudp {
 		std::mutex rtt_mutex;
 		std::array<int, 8> rtt_window;
 		int current_rtt;
-		sockaddr local_endpoint;
-		sockaddr remote_endpoint;
+		NetworkEndpoint local_endpoint;
+		NetworkEndpoint remote_endpoint;
 
 		uint16_t next_sequence_number;
 
@@ -46,6 +40,7 @@ namespace rudp {
 		uint16_t last_remote_sequence_number;
 		uint32_t remote_acknowledges;
 
+		static void ConnectionUpdate(std::stop_token stop_token, Client* client);
 		static void SendPacket(
 				std::shared_ptr<NetworkTransceiver> &network_transceiver,
 				uint16_t app_id,
@@ -55,9 +50,9 @@ namespace rudp {
 				PacketType type,
 				std::optional<std::vector<uint8_t>> data);
 	public:
-		Client(uint16_t application_id);
-
-		static void ConnectionUpdate(std::stop_token stop_token, Client* client);
+		Client(
+				uint16_t application_id,
+				std::shared_ptr<NetworkTransceiver> network_transceiver);
 
 		static std::unique_ptr<const Packet> ReceivePacket(Client* client);
 
@@ -67,13 +62,11 @@ namespace rudp {
 
 		[[nodiscard]] inline ClientState GetState() const;
 
-		[[nodiscard]] inline sockaddr GetLocalEndpoint() const;
+		[[nodiscard]] inline NetworkEndpoint GetLocalEndpoint() const;
 
-		[[nodiscard]] inline sockaddr GetRemoteEndpoint() const;
+		[[nodiscard]] inline NetworkEndpoint GetRemoteEndpoint() const;
 
-		//int Bind(const sockaddr &endpoint);
-
-		int Start(const sockaddr &local, const sockaddr &remote); //TODO: define parameters
+		int Start(const NetworkEndpoint &local, const NetworkEndpoint &remote); //TODO: define parameters
 
 		void Close();
 

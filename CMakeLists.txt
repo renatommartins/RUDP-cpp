@@ -14,7 +14,7 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_subdirectory(rudplib)
 add_subdirectory(utils)
+add_subdirectory(rudplib)
 #add_subdirectory(example01)
 add_subdirectory(unit-tests)

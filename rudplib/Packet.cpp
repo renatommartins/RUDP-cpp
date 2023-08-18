@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#if WIN32
+#if WIN32 || WIN64
 #include <winsock2.h>
 #else
 #include <arpa/inet.h>

@@ -5,6 +5,7 @@ namespace rudp {
 	class WinSock2Support {
 	private:
 		static bool is_initialized;
+		WinSock2Support() = default;
 	public:
 		static void Initialize();
 	};

@@ -2,9 +2,12 @@
 
 #include <gtest/gtest.h>
 
+#include "rudplib/Client.hpp"
 #include "rudplib/Packet.hpp"
+#include "rudplib/MockTransceiver.hpp"
 
 #include "hello_test.hpp"
+
 
 TEST(HelloTest, BasicAssertions) {
 	EXPECT_STRCASENE("hello", "world");

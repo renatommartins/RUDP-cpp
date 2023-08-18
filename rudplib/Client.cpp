@@ -1,3 +1,4 @@
+#include <chrono>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -5,18 +6,23 @@
 #include "Client.hpp"
 #include "Packet.hpp"
 
+#include "utils/time.hpp"
+
 using namespace std::chrono_literals;
 
 namespace rudp {
-	Client::Client(uint16_t application_id) :
+	Client::Client(
+		uint16_t application_id,
+		std::shared_ptr<NetworkTransceiver> network_transceiver) :
+		network_transceiver{std::move(network_transceiver)},
 		application_id{application_id},
 		state{ClientState::Disconnected},
 		receive_queue{},
 		send_queue{},
 		rtt_window{0},
 		current_rtt{0},
-		local_endpoint{0},
-		remote_endpoint{0}
+		local_endpoint{},
+		remote_endpoint{}
 	{}
 
 	int Client::GetAvailable() const {
@@ -36,15 +42,15 @@ namespace rudp {
 		return state;
 	}
 
-	sockaddr Client::GetLocalEndpoint() const {
+	NetworkEndpoint Client::GetLocalEndpoint() const {
 		return local_endpoint;
 	}
 
-	sockaddr Client::GetRemoteEndpoint() const {
+	NetworkEndpoint Client::GetRemoteEndpoint() const {
 		return remote_endpoint;
 	}
 
-	int Client::Start(const sockaddr &local, const sockaddr &remote) {
+	int Client::Start(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
 		local_endpoint = local;
 		remote_endpoint = remote;
 
@@ -248,7 +254,10 @@ namespace rudp {
 
 		auto received_data = network_transceiver->Receive();
 
-		auto data_span = std::span{received_data};
+		if (!received_data.has_value())
+			return nullptr;
+
+		auto data_span = std::span{received_data.value()};
 		auto received_packet = Packet::Deserialize(data_span);
 
 		if (received_packet == nullptr) { return nullptr; }

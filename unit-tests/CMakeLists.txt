@@ -1,9 +1,11 @@
 enable_testing()
 
 add_executable(unit-tests
-        hello_test.cpp)
+        hello_test.cpp
+        Test.MockTransceiver.cpp
+        Rudp.Client.cpp)
 
-target_compile_features(unit-tests PRIVATE cxx_std_20)
+target_compile_features(unit-tests PRIVATE cxx_std_23)
 
 target_include_directories(unit-tests PRIVATE
         include/unit-tests)

@@ -1,15 +1,16 @@
-add_library(rudplib STATIC
+add_library(rudplib OBJECT
         Packet.cpp
         Server.cpp
         Client.cpp
         UdpTranceiver.cpp
-        WinSock2Support.cpp)
+        MockTranceiver.cpp
+        NetworkEndpoint.cpp)
 
-if(WIN32)
+if(WIN32 OR WIN64)
 target_sources(rudplib PRIVATE WinSock2Support.cpp)
 endif ()
 
-target_compile_features(rudplib PRIVATE cxx_std_20)
+target_compile_features(rudplib PRIVATE cxx_std_23)
 
 target_include_directories(rudplib PRIVATE include/rudplib)
 target_include_directories(rudplib INTERFACE include)
