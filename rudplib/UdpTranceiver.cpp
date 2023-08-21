@@ -69,9 +69,10 @@ namespace rudp {
 			.tv_usec = 100,
 		};
 
-		int ret = select(static_cast<int>(udp_socket) + 1, &rfd, nullptr, nullptr, &timeout);
+		int ret = select(udp_socket + 1, &rfd, nullptr, nullptr, &timeout);
+		auto is_set = FD_ISSET(udp_socket, &rfd);
 
-		return FD_ISSET(udp_socket, &rfd)? 1 : 0; //TODO: change the interface to bool
+		return is_set? 1 : 0;  //TODO: change the interface to bool
 	}
 
 	OpenResult UdpTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
@@ -105,7 +106,7 @@ namespace rudp {
 		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer);
 
 		sockaddr receive_address{0};
-		int receive_address_size{0};
+		int receive_address_size{sizeof(receive_address)};
 		auto receive_buffer_pointer = reinterpret_cast<char*>(receive_buffer.data());
 		auto receive_count = recvfrom(
 			udp_socket,
@@ -115,12 +116,15 @@ namespace rudp {
 			&receive_address,
 			&receive_address_size);
 
+		if(receive_count == SOCKET_ERROR)
+			return std::unexpected(ReceiveError::TransceiverError);
+
 		if(receive_address.sa_family != remote_sockaddr->sa_family)
 			return std::unexpected(ReceiveError::NoDataAvailable);
 
 		auto compare_result = memcmp(
-			remote_sockaddr->sa_data,
-			receive_address.sa_data,
+			remote_sockaddr,
+			&receive_address,
 			remote_sockaddr->sa_family == AF_INET ?
 			rudp::utils::socket::kIPV4Size :
 			rudp::utils::socket::kIPV6Size);

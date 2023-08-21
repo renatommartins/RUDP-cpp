@@ -18,6 +18,9 @@ using std::vector;
 namespace rudp{
 	class UdpTransceiver : NetworkTransceiver {
 	private:
+		static constexpr size_t kIPV4Size = 8;
+		static constexpr size_t kIPV6Size = 28; //TODO: double-check this size
+
 		SOCKET udp_socket;
 		static constexpr size_t kReceiveBufferSize = 1024 * 4;
 		static constexpr size_t kSendBufferSize = 1024 * 4;

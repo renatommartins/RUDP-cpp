@@ -22,6 +22,7 @@ namespace rudp {
 	enum class ReceiveError {
 		TransceiverNotOpen,
 		NoDataAvailable,
+		TransceiverError,
 	};
 	enum class TransmitError {
 		TransceiverNotOpen,
