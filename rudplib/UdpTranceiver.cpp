@@ -1,7 +1,7 @@
+#include <iostream>
 #include <vector>
 
 #if(WIN32 || WIN64)
-#include "WinSock2Support.hpp"
 #include "WinSock2.h"
 #include "WS2tcpip.h"
 #endif
@@ -18,15 +18,20 @@ namespace rudp {
 			case AddressFamily::IPv4: {
 				auto ipv4_endpoint = reinterpret_cast<sockaddr_in*>(local_endpoint_sockaddr);
 				ipv4_endpoint->sin_family = AF_INET;
-				ipv4_endpoint->sin_port = network_endpoint.port;
-				memcpy(&ipv4_endpoint->sin_addr, network_endpoint.ip_v4_bytes, 4);
+				ipv4_endpoint->sin_port = htons(network_endpoint.port);
+				auto sockaddr_ip_v4 = reinterpret_cast<uint32_t*>(&ipv4_endpoint->sin_addr);
+				*sockaddr_ip_v4 = network_endpoint.ip_v4;
 				return sizeof(sockaddr_in);
 			}
 			case AddressFamily::IPv6: {
 				auto ipv6_endpoint = reinterpret_cast<sockaddr_in6*>(local_endpoint_sockaddr);
 				ipv6_endpoint->sin6_family = AF_INET6;
 				ipv6_endpoint->sin6_port = network_endpoint.port;
-				memcpy(&ipv6_endpoint->sin6_addr, network_endpoint.ip_v6_bytes, 16);
+				auto sockaddr_ip_v6_upper = reinterpret_cast<uint64_t*>(&ipv6_endpoint->sin6_addr);
+				auto sockaddr_ip_v6_lower = reinterpret_cast<uint64_t*>(&ipv6_endpoint->sin6_addr);
+				*sockaddr_ip_v6_upper = network_endpoint.ip_v6_upper;
+				*sockaddr_ip_v6_lower = network_endpoint.ip_v6_lower;
+				std::swap(*sockaddr_ip_v6_upper, *sockaddr_ip_v6_lower);//TODO: does this work?
 				return sizeof(sockaddr_in6);
 			}
 			default:
@@ -37,18 +42,39 @@ namespace rudp {
 	UdpTransceiver::UdpTransceiver() :
 		udp_socket{INVALID_SOCKET}//TODO: check if preprocessor if(WIN32) is needed
 	{
+#if WIN32 || WIN64
+		auto wsa_data = WSADATA{0};
+		WSAStartup(MAKEWORD(2, 2), &wsa_data);
+#endif
+	}
 
+	UdpTransceiver::~UdpTransceiver() {
+		if(is_open) {
+			auto close_result = closesocket(udp_socket);
+			if(close_result == SOCKET_ERROR)
+				std::cout << close_result;
+		}
+#if WIN32 || WIN64
+		WSACleanup();
+#endif
 	}
 
 	int UdpTransceiver::GetAvailable() const {
-		if (rudp::utils::socket::isSocketPendingBytes(udp_socket, 0)) { return 1; }
-		else { return 0; }
+		fd_set rfd;
+		FD_ZERO(&rfd);
+		FD_SET(udp_socket, &rfd);
+
+		struct timeval timeout = {
+			.tv_sec = 0,
+			.tv_usec = 100,
+		};
+
+		int ret = select(static_cast<int>(udp_socket) + 1, &rfd, nullptr, nullptr, &timeout);
+
+		return FD_ISSET(udp_socket, &rfd)? 1 : 0; //TODO: change the interface to bool
 	}
 
 	OpenResult UdpTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
-#if WIN32 || WIN64
-		WinSock2Support::Initialize();
-#endif
 
 		local_endpoint_size = ConvertNetworkEndpointToSockaddrBuffer(local, local_endpoint_buffer);
 		remote_endpoint_size = ConvertNetworkEndpointToSockaddrBuffer(remote, remote_endpoint_buffer);
@@ -89,20 +115,18 @@ namespace rudp {
 			&receive_address,
 			&receive_address_size);
 
-		do {
-			if(receive_address.sa_family != remote_sockaddr->sa_family)
-				break;
+		if(receive_address.sa_family != remote_sockaddr->sa_family)
+			return std::unexpected(ReceiveError::NoDataAvailable);
 
-			auto compare_result = memcmp(
-				remote_sockaddr->sa_data,
-				receive_address.sa_data,
-				remote_sockaddr->sa_family == AF_INET ?
-				rudp::utils::socket::kIPV4Size :
-				rudp::utils::socket::kIPV6Size);
+		auto compare_result = memcmp(
+			remote_sockaddr->sa_data,
+			receive_address.sa_data,
+			remote_sockaddr->sa_family == AF_INET ?
+			rudp::utils::socket::kIPV4Size :
+			rudp::utils::socket::kIPV6Size);
 
-			if(compare_result != 0)
-				return std::unexpected(ReceiveError::NoDataAvailable);
-		} while (false);
+		if(compare_result != 0)
+			return std::unexpected(ReceiveError::NoDataAvailable);
 
 		auto receive_data = std::vector<uint8_t>{receive_buffer.data(), receive_buffer.data() + receive_count};
 

@@ -4,10 +4,11 @@
 namespace rudp {
 	class WinSock2Support {
 	private:
-		static bool is_initialized;
+		static int socket_count;
 		WinSock2Support() = default;
 	public:
 		static void Initialize();
+		static void Cleanup();
 	};
 }
 

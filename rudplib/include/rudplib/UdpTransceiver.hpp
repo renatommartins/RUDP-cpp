@@ -23,6 +23,7 @@ namespace rudp{
 		static constexpr size_t kSendBufferSize = 1024 * 4;
 		std::array<uint8_t, kReceiveBufferSize> receive_buffer;
 		std::array<uint8_t, kSendBufferSize> send_buffer;
+		bool is_open;
 		NetworkEndpoint local_endpoint;
 		uint8_t local_endpoint_buffer[64];
 		size_t local_endpoint_size;
@@ -32,6 +33,7 @@ namespace rudp{
 		static size_t ConvertNetworkEndpointToSockaddrBuffer(const NetworkEndpoint &network_endpoint, uint8_t* buffer);
 	public:
 		UdpTransceiver();
+		~UdpTransceiver();
 		[[nodiscard]] int GetAvailable() const override;
 		OpenResult Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) override;
 		[[nodiscard]] expected<vector<uint8_t>, ReceiveError> Receive() override;

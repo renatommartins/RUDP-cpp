@@ -18,7 +18,7 @@ namespace rudp {
 
 	OpenResult MockTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
 		if (is_open)
-			return OpenResult::ResourceNotAvailable;
+			return OpenResult::AlreadyOpen;
 
 		is_open = true;
 

@@ -10,6 +10,7 @@
 namespace rudp {
 	enum class OpenResult {
 		Successful,
+		AlreadyOpen,
 		ResourceNotAvailable,
 		InvalidEndpoint,
 	};

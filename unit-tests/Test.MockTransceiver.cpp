@@ -36,3 +36,45 @@ TEST(MockTransceiver, ABC) {
 
 	transceiver.Close();
 }
+
+TEST (MockTransceiver, Open_WhenClosed_Successful) {
+	auto transceiver = rudp::MockTransceiver{};
+
+	std::array<uint8_t, 4> local_address{ 0, 0, 0, 0};
+	std::array<uint8_t, 4> remote_address{ 127, 0, 0, 1 };
+
+	auto open_result = transceiver.Open(
+		rudp::NetworkEndpoint{
+			rudp::AddressFamily::IPv4,
+			0,
+			reinterpret_cast<uint8_t*>(&local_address)},
+		rudp::NetworkEndpoint{
+			rudp::AddressFamily::IPv4,
+			1337,
+			reinterpret_cast<uint8_t*>(&remote_address)});
+
+	ASSERT_EQ(open_result, rudp::OpenResult::Successful);
+}
+
+TEST (MockTransceiver, Open_WhenAlreadyOpen_AlreadyOpen) {
+	auto transceiver = rudp::MockTransceiver{};
+
+	std::array<uint8_t, 4> local_address{ 0, 0, 0, 0};
+	std::array<uint8_t, 4> remote_address{ 127, 0, 0, 1 };
+
+	rudp::NetworkEndpoint local_endpoint {
+		rudp::AddressFamily::IPv4,
+		0,
+		reinterpret_cast<uint8_t*>(&local_address)};
+
+	rudp::NetworkEndpoint remote_endpoint {
+		rudp::AddressFamily::IPv4,
+		1337,
+		reinterpret_cast<uint8_t*>(&remote_address)};
+
+	auto open_result = transceiver.Open(local_endpoint, remote_endpoint);
+	EXPECT_EQ(open_result, rudp::OpenResult::Successful);
+
+	open_result = transceiver.Open(local_endpoint, remote_endpoint);
+	ASSERT_EQ(open_result, rudp::OpenResult::AlreadyOpen);
+}
