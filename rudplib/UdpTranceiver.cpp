@@ -6,8 +6,6 @@
 #include "WS2tcpip.h"
 #endif
 
-#include "utils/socket.hpp"
-
 #include "UdpTransceiver.hpp"
 
 namespace rudp {
@@ -42,7 +40,7 @@ namespace rudp {
 	UdpTransceiver::UdpTransceiver() :
 		udp_socket{INVALID_SOCKET}//TODO: check if preprocessor if(WIN32) is needed
 	{
-#if WIN32 || WIN64
+#if WIN32
 		auto wsa_data = WSADATA{0};
 		WSAStartup(MAKEWORD(2, 2), &wsa_data);
 #endif
@@ -125,9 +123,7 @@ namespace rudp {
 		auto compare_result = memcmp(
 			remote_sockaddr,
 			&receive_address,
-			remote_sockaddr->sa_family == AF_INET ?
-			rudp::utils::socket::kIPV4Size :
-			rudp::utils::socket::kIPV6Size);
+			remote_sockaddr->sa_family == AF_INET ? kIPV4Size : kIPV6Size);
 
 		if(compare_result != 0)
 			return std::unexpected(ReceiveError::NoDataAvailable);

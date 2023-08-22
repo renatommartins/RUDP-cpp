@@ -6,10 +6,6 @@ add_library(rudplib OBJECT
         MockTranceiver.cpp
         NetworkEndpoint.cpp)
 
-if(WIN32 OR WIN64)
-target_sources(rudplib PRIVATE WinSock2Support.cpp)
-endif ()
-
 target_compile_features(rudplib PRIVATE cxx_std_23)
 
 target_include_directories(rudplib PRIVATE include/rudplib)
