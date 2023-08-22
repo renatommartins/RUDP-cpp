@@ -2,7 +2,7 @@ enable_testing()
 
 add_executable(unit-tests
         hello_test.cpp
-        Test.MockTransceiver.cpp
+        MockTransceiverTest.cpp
         Test.UdpTransceiver.cpp
         Rudp.Client.cpp)
 
@@ -13,6 +13,7 @@ target_include_directories(unit-tests PRIVATE
 
 target_link_libraries(unit-tests PRIVATE
         GTest::gtest_main
+        GTest::gmock
         rudplib)
 
 include(GoogleTest)
