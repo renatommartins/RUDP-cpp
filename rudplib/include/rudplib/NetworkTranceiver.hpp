@@ -28,7 +28,7 @@ namespace rudp {
 		TransceiverNotOpen,
 	};
 	struct NetworkTransceiver {
-		[[nodiscard]] virtual int GetAvailable() const = 0;
+		[[nodiscard]] virtual bool IsDataAvailable() const = 0;
 		virtual OpenResult Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) = 0;
 		[[nodiscard]] virtual std::expected<std::vector<uint8_t>, ReceiveError> Receive() = 0;
 		virtual std::expected<int, TransmitError> Transmit(std::span<uint8_t> data) = 0;

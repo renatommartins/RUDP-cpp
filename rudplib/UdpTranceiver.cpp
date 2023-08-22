@@ -59,7 +59,7 @@ namespace rudp {
 #endif
 	}
 
-	int UdpTransceiver::GetAvailable() const {
+	bool UdpTransceiver::IsDataAvailable() const {
 		fd_set rfd;
 		FD_ZERO(&rfd);
 		FD_SET(udp_socket, &rfd);
@@ -72,7 +72,7 @@ namespace rudp {
 		int ret = select(udp_socket + 1, &rfd, nullptr, nullptr, &timeout);
 		auto is_set = FD_ISSET(udp_socket, &rfd);
 
-		return is_set? 1 : 0;  //TODO: change the interface to bool
+		return is_set != 0;
 	}
 
 	OpenResult UdpTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
@@ -100,7 +100,7 @@ namespace rudp {
 		if(udp_socket == INVALID_SOCKET)
 			return std::unexpected(ReceiveError::TransceiverNotOpen);
 
-		if(GetAvailable() == 0)
+		if(IsDataAvailable() == 0)
 			return std::unexpected(ReceiveError::NoDataAvailable);
 
 		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer);

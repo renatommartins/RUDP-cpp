@@ -22,7 +22,7 @@ TEST(MockTransceiver, ABC) {
 	std::vector<uint8_t> receive_test_data{ 0xAA, 0x55, 0xAA, 0x55 };
 	transceiver.receive_queue.emplace(receive_test_data);
 
-	if (transceiver.GetAvailable() != 0) {
+	if (transceiver.IsDataAvailable() != 0) {
 		auto receive_test_data_validation = transceiver.Receive();
 	}
 

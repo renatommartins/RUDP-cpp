@@ -28,7 +28,7 @@ TEST (UdpTransceiver, ABC) {
 		transceiver.Transmit(test_transmit_data);
 	}
 
-	while(transceiver.GetAvailable() > 0) {
+	while(transceiver.IsDataAvailable()) {
 		auto received_data = transceiver.Receive();
 	}
 }

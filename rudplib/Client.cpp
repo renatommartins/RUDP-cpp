@@ -129,7 +129,7 @@ namespace rudp {
 			while (!stop_token.stop_requested()) {
 				if (request_expire_time < rudp::utils::chrono::GetTimePointNowMs()) { return; }
 
-				if (network_transceiver->GetAvailable() == 0) {
+				if (network_transceiver->IsDataAvailable()) {
 					std::this_thread::yield();
 					continue;
 				}
@@ -150,7 +150,7 @@ namespace rudp {
 		auto next_send_time = rudp::utils::chrono::GetTimePointNowMs();
 
 		while(state == ClientState::Connected && !stop_token.stop_requested()) {
-			while (network_transceiver->GetAvailable() > 0) {
+			while (network_transceiver->IsDataAvailable()) {
 				auto received_packet = ReceivePacket(client);
 
 				switch (received_packet->type) {

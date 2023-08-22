@@ -37,7 +37,7 @@ namespace rudp{
 	public:
 		UdpTransceiver();
 		~UdpTransceiver();
-		[[nodiscard]] int GetAvailable() const override;
+		[[nodiscard]] bool IsDataAvailable() const override;
 		OpenResult Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) override;
 		[[nodiscard]] expected<vector<uint8_t>, ReceiveError> Receive() override;
 		expected<int, TransmitError> Transmit(std::span<uint8_t> data) override;

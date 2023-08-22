@@ -12,8 +12,8 @@ namespace rudp {
 		remote_endpoint{}
 	{}
 
-	int MockTransceiver::GetAvailable() const {
-		return is_open? static_cast<int>(receive_queue.size()) : 0;
+	bool MockTransceiver::IsDataAvailable() const {
+		return !receive_queue.empty();
 	}
 
 	OpenResult MockTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
