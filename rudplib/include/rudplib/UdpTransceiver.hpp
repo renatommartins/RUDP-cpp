@@ -20,20 +20,18 @@ namespace rudp{
 	private:
 		static constexpr size_t kIPV4Size = 8;
 		static constexpr size_t kIPV6Size = 28; //TODO: double-check this size
-
-		SOCKET udp_socket;
 		static constexpr size_t kReceiveBufferSize = 1024 * 4;
 		static constexpr size_t kSendBufferSize = 1024 * 4;
+		static size_t ConvertNetworkEndpointToSockaddrBuffer(const NetworkEndpoint &network_endpoint, std::span<uint8_t> buffer);
+
+		SOCKET udp_socket;
+		bool is_open;
+		std::array<uint8_t,64> local_endpoint_buffer;
+		size_t local_endpoint_size;
+		std::array<uint8_t,64> remote_endpoint_buffer;
+		size_t remote_endpoint_size;
 		std::array<uint8_t, kReceiveBufferSize> receive_buffer;
 		std::array<uint8_t, kSendBufferSize> send_buffer;
-		bool is_open;
-		NetworkEndpoint local_endpoint;
-		uint8_t local_endpoint_buffer[64];
-		size_t local_endpoint_size;
-		NetworkEndpoint remote_endpoint;
-		uint8_t remote_endpoint_buffer[64];
-		size_t remote_endpoint_size;
-		static size_t ConvertNetworkEndpointToSockaddrBuffer(const NetworkEndpoint &network_endpoint, uint8_t* buffer);
 	public:
 		UdpTransceiver();
 		~UdpTransceiver();

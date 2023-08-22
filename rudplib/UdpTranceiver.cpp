@@ -9,8 +9,10 @@
 #include "UdpTransceiver.hpp"
 
 namespace rudp {
-	size_t UdpTransceiver::ConvertNetworkEndpointToSockaddrBuffer(const NetworkEndpoint &network_endpoint, uint8_t* buffer){
-		auto local_endpoint_sockaddr = reinterpret_cast<sockaddr*>(buffer);
+	size_t UdpTransceiver::ConvertNetworkEndpointToSockaddrBuffer(
+		const NetworkEndpoint &network_endpoint,
+		std::span<uint8_t> buffer) {
+		auto local_endpoint_sockaddr = reinterpret_cast<sockaddr*>(buffer.data());
 
 		switch (network_endpoint.address_family) {
 			case AddressFamily::IPv4: {
@@ -38,7 +40,14 @@ namespace rudp {
 	}
 
 	UdpTransceiver::UdpTransceiver() :
-		udp_socket{INVALID_SOCKET}//TODO: check if preprocessor if(WIN32) is needed
+		udp_socket{INVALID_SOCKET},//TODO: check if preprocessor if(WIN32) is needed
+		is_open{false},
+		local_endpoint_buffer{0},
+		local_endpoint_size{0},
+		remote_endpoint_buffer{0},
+		remote_endpoint_size{0},
+		receive_buffer{0},
+		send_buffer{0}
 	{
 #if WIN32
 		auto wsa_data = WSADATA{0};
@@ -58,6 +67,9 @@ namespace rudp {
 	}
 
 	bool UdpTransceiver::IsDataAvailable() const {
+		if(!is_open)
+			return false;
+
 		fd_set rfd;
 		FD_ZERO(&rfd);
 		FD_SET(udp_socket, &rfd);
@@ -74,11 +86,13 @@ namespace rudp {
 	}
 
 	OpenResult UdpTransceiver::Open(const NetworkEndpoint &local, const NetworkEndpoint &remote) {
+		if(is_open)
+			return OpenResult::AlreadyOpen;
 
 		local_endpoint_size = ConvertNetworkEndpointToSockaddrBuffer(local, local_endpoint_buffer);
 		remote_endpoint_size = ConvertNetworkEndpointToSockaddrBuffer(remote, remote_endpoint_buffer);
 
-		auto local_sockaddr = reinterpret_cast<sockaddr*>(local_endpoint_buffer);
+		auto local_sockaddr = reinterpret_cast<sockaddr*>(local_endpoint_buffer.data());
 
 		udp_socket = socket(local_sockaddr->sa_family, SOCK_DGRAM, IPPROTO_UDP);
 		if(udp_socket == INVALID_SOCKET)
@@ -88,8 +102,7 @@ namespace rudp {
 		if(bind_result == SOCKET_ERROR)
 			return OpenResult::ResourceNotAvailable;
 
-		this->local_endpoint = local;
-		this->remote_endpoint = remote;
+		is_open = true;
 
 		return OpenResult::Successful;
 	}
@@ -101,7 +114,7 @@ namespace rudp {
 		if(IsDataAvailable() == 0)
 			return std::unexpected(ReceiveError::NoDataAvailable);
 
-		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer);
+		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer.data());
 
 		sockaddr receive_address{0};
 		int receive_address_size{sizeof(receive_address)};
@@ -139,7 +152,7 @@ namespace rudp {
 		if(udp_socket == INVALID_SOCKET)
 			return std::unexpected(TransmitError::TransceiverNotOpen);
 
-		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer);
+		auto remote_sockaddr = reinterpret_cast<sockaddr*>(remote_endpoint_buffer.data());
 
 		std::copy_n(data.data(), data.size(), send_buffer.data());
 
@@ -158,10 +171,15 @@ namespace rudp {
 	}
 
 	CloseResult UdpTransceiver::Close() {
+		if(!is_open)
+			return CloseResult::TransceiverNotOpen;
+
 		auto close_result = closesocket(udp_socket);
 
 		if(close_result == SOCKET_ERROR)
 			return CloseResult::ResourceNotAvailable;
+
+		is_open = false;
 
 		return CloseResult::Successful;
 	}

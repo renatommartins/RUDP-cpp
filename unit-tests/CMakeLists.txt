@@ -3,7 +3,7 @@ enable_testing()
 add_executable(unit-tests
         hello_test.cpp
         MockTransceiverTest.cpp
-        Test.UdpTransceiver.cpp
+        UdpTransceiverTest.cpp
         Rudp.Client.cpp)
 
 target_compile_features(unit-tests PRIVATE cxx_std_23)
