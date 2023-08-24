@@ -3,26 +3,32 @@
 #include <thread>
 #include <vector>
 
-#include "Client.hpp"
-#include "Packet.hpp"
-
 #include "utils/time.hpp"
 
+#include "Packet.hpp"
+
+#include "Client.hpp"
+
 using namespace std::chrono_literals;
+using rudp::utils::chrono::GetTimePointNowMs;
+using rudp::utils::chrono::time_point_ms;
 
 namespace rudp {
 	Client::Client(
 		uint16_t application_id,
-		std::shared_ptr<NetworkTransceiver> network_transceiver) :
+		std::shared_ptr<NetworkTransceiver> network_transceiver,
+		ClientMode client_mode) :
 		network_transceiver{std::move(network_transceiver)},
 		application_id{application_id},
+		client_mode{client_mode},
 		state{ClientState::Disconnected},
 		receive_queue{},
 		send_queue{},
 		rtt_window{0},
 		current_rtt{0},
 		local_endpoint{},
-		remote_endpoint{}
+		remote_endpoint{},
+		request_expire_time{}
 	{}
 
 	int Client::GetAvailable() const {
@@ -54,7 +60,8 @@ namespace rudp {
 		local_endpoint = local;
 		remote_endpoint = remote;
 
-		connection_thread = std::jthread{ConnectionUpdate, this};
+		if(client_mode == ClientMode::Threaded)
+			connection_thread = std::jthread{ConnectionUpdate, this};
 
 		return 0;
 	}
@@ -84,7 +91,29 @@ namespace rudp {
 		return std::array<const PacketResult, sizeof(uint32_t) * 8>{0};
 	}
 
-	void Client::ConnectionUpdate(const std::stop_token stop_token, Client* const client) {
+	std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> Client::SynchronousUpdate() {
+		if (client_mode != ClientMode::Synchronous)
+			return std::unexpected(ClientUpdateError::InvalidMode);
+
+		auto update_result = ConnectionUpdate(this);
+
+		return update_result;
+	}
+
+	void Client::ConnectionThread(const std::stop_token stop_token, Client* const client) {
+		auto next_send_time = rudp::utils::chrono::GetTimePointNowMs();
+
+		while(client->state == ClientState::Connected && !stop_token.stop_requested()) {
+			auto update_result = ConnectionUpdate(client);
+
+			if(!update_result.has_value())
+				break;
+
+			std::this_thread::sleep_until(update_result.value());
+		}
+	}
+
+	std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> Client::ConnectionUpdate(Client* const client) {
 		const auto& application_id = client->application_id;
 		auto& local_endpoint = client->local_endpoint;
 		auto& remote_endpoint = client->remote_endpoint;
@@ -101,145 +130,151 @@ namespace rudp {
 		auto& last_remote_sequence_number = client->last_remote_sequence_number;
 		auto& remote_acknowledges = client->remote_acknowledges;
 
+		auto& request_expire_time = client->request_expire_time;
+		auto& next_send_time = client->next_send_time;
+
 		auto rtt_array_index = 0;
 		auto rtt_window = std::array<int, 8>{0};
 
-		{
-			auto open_result = network_transceiver->Open(local_endpoint, remote_endpoint);
+		switch(state) {
+			case ClientState::Disconnected: {
+				auto open_result = network_transceiver->Open(local_endpoint, remote_endpoint);
 
-			if(open_result == OpenResult::ResourceNotAvailable)
-				return;
-		}
+				if (open_result == OpenResult::ResourceNotAvailable)
+					return std::unexpected(ClientUpdateError::CouldntOpen);
 
-		{
-			SendPacket(
-				network_transceiver,
-				application_id,
-				next_sequence_number++,
-				0,
-				0,
-				PacketType::ConnectionRequest,
-				std::nullopt);
+				SendPacket(
+					network_transceiver,
+					application_id,
+					next_sequence_number++,
+					0,
+					0,
+					PacketType::ConnectionRequest,
+					std::nullopt);
 
-			state = ClientState::Connecting;
-			auto request_expire_time =
-				rudp::utils::chrono::GetTimePointNowMs() + 1000ms;
+				state = ClientState::Connecting;
 
+				request_expire_time =
+					GetTimePointNowMs() + 1000ms; //TODO: make connection timeout configurable
 
-			while (!stop_token.stop_requested()) {
-				if (request_expire_time < rudp::utils::chrono::GetTimePointNowMs()) { return; }
-
-				if (network_transceiver->IsDataAvailable()) {
-					std::this_thread::yield();
-					continue;
+				return GetTimePointNowMs() + 50ms; //TODO: should connection request update interval be the same as connection keep alive?
+			}
+			case ClientState::Connecting: {
+				if (request_expire_time < GetTimePointNowMs()) {
+					state = ClientState::Disconnected;
+					return std::unexpected(ClientUpdateError::Disconnected);
 				}
+
+				if (!network_transceiver->IsDataAvailable())
+					return GetTimePointNowMs() + 50ms;
 
 				auto connection_reply_packet = ReceivePacket(client);
 
 				if (connection_reply_packet == nullptr ||
 				    connection_reply_packet->type != PacketType::ConnectionAccept) {
+
 					state = ClientState::Disconnected;
-					return;
+					return std::unexpected(ClientUpdateError::Disconnected);
 				}
 
 				state = ClientState::Connected;
-				break;
+				return GetTimePointNowMs() + 20ms;
 			}
-		}
+			case ClientState::Connected: {
+				while (network_transceiver->IsDataAvailable()) {
+					auto received_packet = ReceivePacket(client);
 
-		auto next_send_time = rudp::utils::chrono::GetTimePointNowMs();
-
-		while(state == ClientState::Connected && !stop_token.stop_requested()) {
-			while (network_transceiver->IsDataAvailable()) {
-				auto received_packet = ReceivePacket(client);
-
-				switch (received_packet->type) {
-					case PacketType::KeepAlive:
-						break;
-					case PacketType::Data: {
-						auto packet_data = std::vector<uint8_t>{
+					switch (received_packet->type) {
+						case PacketType::KeepAlive:
+							break;
+						case PacketType::Data: {
+							auto packet_data = std::vector<uint8_t>{
 								received_packet->data,
 								received_packet->data + received_packet->data_length
-						};
-						receive_queue.emplace(packet_data);
-						break;
-					}
-					case PacketType::DisconnectionNotify: {
-						while(!send_queue.empty())
-							send_queue.pop();
-						network_transceiver->Close();
-						state = ClientState::Disconnected;
-						break;
-					}
-					default: {
-						state = ClientState::ForceClose;
-						auto force_close_packet = Packet::CreatePacket(
-							application_id,
-							next_sequence_number++,
-							last_remote_sequence_number,
-							remote_acknowledges,
-							PacketType::DisconnectionNotify,
-							std::nullopt);
-						auto send_data = Packet::Serialize(force_close_packet);
-						network_transceiver->Transmit(send_data);
+							};
+							receive_queue.emplace(packet_data);
 
-						break;
+							break;
+						}
+						case PacketType::DisconnectionNotify: {
+							while(!send_queue.empty())
+								send_queue.pop();
+							network_transceiver->Close();
+
+							state = ClientState::Disconnected;
+							return std::unexpected(ClientUpdateError::Disconnected);
+						}
+						default: {
+							auto force_close_packet = Packet::CreatePacket(
+								application_id,
+								next_sequence_number++,
+								last_remote_sequence_number,
+								remote_acknowledges,
+								PacketType::DisconnectionNotify,
+								std::nullopt);
+							auto send_data = Packet::Serialize(force_close_packet);
+							network_transceiver->Transmit(send_data);
+
+							state = ClientState::ForceClose;
+							return std::unexpected(ClientUpdateError::ForceClosed);
+						}
 					}
 				}
-			}
 
-			if(next_send_time > rudp::utils::chrono::GetTimePointNowMs()) {
-				std::this_thread::sleep_for(10ms);
-				continue;
-			}
-			next_send_time = rudp::utils::chrono::GetTimePointNowMs() + 50ms;
+				if(next_send_time > GetTimePointNowMs())
+					return next_send_time;
 
-			PacketType packet_type;
-			std::optional<std::vector<uint8_t>> packet_data;
+				next_send_time = GetTimePointNowMs() + 50ms;
 
-			if(!send_queue.empty()) {
-				packet_type = PacketType::Data;
-				auto send_packet_data = std::vector<uint8_t>{0};
+				PacketType packet_type;
+				std::optional<std::vector<uint8_t>> packet_data;
 
-				while(!send_queue.empty()) {
-					auto data = send_queue.front();
-					send_queue.pop();
+				if(!send_queue.empty()) {
+					packet_type = PacketType::Data;
+					auto send_packet_data = std::vector<uint8_t>{0};
 
-					send_packet_data.insert(send_packet_data.end(), data.begin(), data.end());
+					while(!send_queue.empty()) {
+						auto data = send_queue.front();
+						send_queue.pop();
+
+						send_packet_data.insert(send_packet_data.end(), data.begin(), data.end());
+					}
+
+					packet_data = std::optional<std::vector<uint8_t>>{send_packet_data};
+				}
+				else {
+					packet_type = PacketType::KeepAlive;
+					packet_data = std::nullopt;
 				}
 
-				packet_data = std::optional<std::vector<uint8_t>>{send_packet_data};
-			}
-			else {
-				packet_type = PacketType::KeepAlive;
-				packet_data = std::nullopt;
-			}
+				SendPacket(
+					network_transceiver,
+					application_id,
+					next_sequence_number++,
+					last_remote_sequence_number,
+					remote_acknowledges,
+					packet_type,
+					packet_data);
 
-			SendPacket(
-				network_transceiver,
-				application_id,
-				next_sequence_number++,
-				last_remote_sequence_number,
-				remote_acknowledges,
-				packet_type,
-				packet_data);
+				return next_send_time;
+			}
+			case ClientState::Disconnecting:{
+				SendPacket(
+					network_transceiver,
+					application_id,
+					next_sequence_number++,
+					last_remote_sequence_number,
+					remote_acknowledges,
+					PacketType::DisconnectionNotify,
+					std::nullopt
+				);
 
-			std::this_thread::sleep_for(10ms);
+				state = ClientState::Disconnected;
+				return std::unexpected(ClientUpdateError::Disconnected);
+			}
+			default:
+				return std::unexpected(ClientUpdateError::InvalidState);
 		}
-
-		SendPacket(
-			network_transceiver,
-			application_id,
-			next_sequence_number++,
-			last_remote_sequence_number,
-			remote_acknowledges,
-			PacketType::DisconnectionNotify,
-			std::nullopt
-		);
-
-		state = ClientState::Disconnected;
-
-		auto close_result = network_transceiver->Close();
 	}
 
 	std::unique_ptr<const Packet> Client::ReceivePacket(Client* const client) {

@@ -4,11 +4,14 @@
 #include <cstdint>
 #include <array>
 #include <chrono>
+#include <expected>
 #include <mutex>
 #include <queue>
 #include <span>
 #include <thread>
 #include <vector>
+
+#include "utils/time.hpp"
 
 #include "ClientState.hpp"
 #include "PacketResult.hpp"
@@ -16,13 +19,27 @@
 #include "NetworkTranceiver.hpp"
 #include "Packet.hpp"
 
+
+
 namespace rudp {
+	enum class ClientMode {
+		Threaded,
+		Synchronous,
+	};
+	enum class ClientUpdateError {
+		Disconnected,
+		ForceClosed,
+		InvalidMode,
+		InvalidState,
+		CouldntOpen,
+	};
 	class Client {
 	private:
 		std::jthread connection_thread;
 
 		uint16_t application_id;
 		std::shared_ptr<NetworkTransceiver> network_transceiver;
+		ClientMode client_mode;
 		ClientState state;
 		std::queue<std::vector<uint8_t>> receive_queue;
 		std::queue<std::vector<uint8_t>> send_queue;
@@ -40,7 +57,12 @@ namespace rudp {
 		uint16_t last_remote_sequence_number;
 		uint32_t remote_acknowledges;
 
-		static void ConnectionUpdate(std::stop_token stop_token, Client* client);
+		rudp::utils::chrono::time_point_ms request_expire_time;
+		rudp::utils::chrono::time_point_ms next_send_time;
+
+		static void ConnectionThread(std::stop_token stop_token, Client* client);
+		static std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> ConnectionUpdate(Client *const client);
+		static std::unique_ptr<const Packet> ReceivePacket(Client* client);
 		static void SendPacket(
 				std::shared_ptr<NetworkTransceiver> &network_transceiver,
 				uint16_t app_id,
@@ -52,9 +74,8 @@ namespace rudp {
 	public:
 		Client(
 				uint16_t application_id,
-				std::shared_ptr<NetworkTransceiver> network_transceiver);
-
-		static std::unique_ptr<const Packet> ReceivePacket(Client* client);
+				std::shared_ptr<NetworkTransceiver> network_transceiver,
+				ClientMode client_mode = ClientMode::Threaded);
 
 		[[nodiscard]] inline int GetAvailable() const;
 
@@ -67,6 +88,8 @@ namespace rudp {
 		[[nodiscard]] inline NetworkEndpoint GetRemoteEndpoint() const;
 
 		int Start(const NetworkEndpoint &local, const NetworkEndpoint &remote); //TODO: define parameters
+
+		std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> SynchronousUpdate();
 
 		void Close();
 
