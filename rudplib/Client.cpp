@@ -28,7 +28,12 @@ namespace rudp {
 		current_rtt{0},
 		local_endpoint{},
 		remote_endpoint{},
-		request_expire_time{}
+		request_expire_time{},
+		next_sequence_number{0},
+		last_sequence_number_acknowledged{0xFFFF},
+		local_acknowledges{0},
+		last_remote_sequence_number{0xFFFF},
+		remote_acknowledges{0}
 	{}
 
 	int Client::GetAvailable() const {
