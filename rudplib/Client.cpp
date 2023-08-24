@@ -105,7 +105,7 @@ namespace rudp {
 		return update_result;
 	}
 
-	void Client::ConnectionThread(const std::stop_token stop_token, Client* const client) {
+	void Client::ConnectionThread(const std::stop_token &stop_token, Client* const client) {
 		auto next_send_time = rudp::utils::chrono::GetTimePointNowMs();
 
 		while(client->state == ClientState::Connected && !stop_token.stop_requested()) {

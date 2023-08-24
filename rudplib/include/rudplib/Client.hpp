@@ -60,8 +60,8 @@ namespace rudp {
 		rudp::utils::chrono::time_point_ms request_expire_time;
 		rudp::utils::chrono::time_point_ms next_send_time;
 
-		static void ConnectionThread(std::stop_token stop_token, Client* client);
-		static std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> ConnectionUpdate(Client *const client);
+		static void ConnectionThread(const std::stop_token &stop_token, Client* client);
+		static std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> ConnectionUpdate(Client* client);
 		static std::unique_ptr<const Packet> ReceivePacket(Client* client);
 		static void SendPacket(
 				std::shared_ptr<NetworkTransceiver> &network_transceiver,
@@ -72,7 +72,7 @@ namespace rudp {
 				PacketType type,
 				std::optional<std::vector<uint8_t>> data);
 	public:
-		Client(
+		explicit Client(
 				uint16_t application_id,
 				ClientMode client_mode = ClientMode::Threaded,
 				std::shared_ptr<NetworkTransceiver> network_transceiver = std::make_shared<UdpTransceiver>());
