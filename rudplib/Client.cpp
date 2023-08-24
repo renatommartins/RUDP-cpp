@@ -91,9 +91,24 @@ namespace rudp {
 		return data_vector;
 	}
 
-	std::array<const PacketResult, sizeof(uint32_t) * 8> Client::GetAcknowledge() const {
-		//TODO: return last 32 packets acknowledge state
-		return std::array<const PacketResult, sizeof(uint32_t) * 8>{0};
+	std::array<PacketResult, Client::kPacketAcknowledgeLength> Client::GetAcknowledge() const {
+		std::array<PacketResult, kPacketAcknowledgeLength> return_value{0};
+
+		return_value.at(0) = PacketResult {
+			last_sequence_number_acknowledged,
+			true,
+		};
+
+		int offset = 31;
+		uint16_t upper_boundary = last_sequence_number_acknowledged-1;
+		uint16_t lower_boundary = last_sequence_number_acknowledged - kPacketAcknowledgeLength + 1;
+		for (uint16_t i = upper_boundary; i > lower_boundary; i--, offset++) {
+			return_value.at(i + 1) = PacketResult{
+				i,
+				(local_acknowledges & (1 << offset)) != 0,
+			};
+		}
+		return return_value;
 	}
 
 	std::expected<rudp::utils::chrono::time_point_ms, ClientUpdateError> Client::SynchronousUpdate() {

@@ -35,6 +35,7 @@ namespace rudp {
 	};
 	class Client {
 	private:
+		static constexpr size_t kPacketAcknowledgeLength = sizeof(uint32_t) * 8 + 1;
 		std::jthread connection_thread;
 
 		uint16_t application_id;
@@ -97,7 +98,7 @@ namespace rudp {
 
 		[[nodiscard]] std::vector<uint8_t> Receive();
 
-		[[nodiscard]] std::array<const PacketResult, sizeof(uint32_t) * 8> GetAcknowledge() const;
+		[[nodiscard]] std::array<PacketResult, kPacketAcknowledgeLength> GetAcknowledge() const;
 	};
 }
 #endif //RUDPLIB_CLIENT_HPP
