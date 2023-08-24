@@ -79,7 +79,7 @@ namespace rudp {
 			.tv_usec = 100,
 		};
 
-		int ret = select(udp_socket + 1, &rfd, nullptr, nullptr, &timeout);
+		int ret = select(static_cast<int>(udp_socket) + 1, &rfd, nullptr, nullptr, &timeout);
 		auto is_set = FD_ISSET(udp_socket, &rfd);
 
 		return is_set != 0;
