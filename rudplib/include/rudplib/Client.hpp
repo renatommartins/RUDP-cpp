@@ -14,11 +14,11 @@
 #include "utils/time.hpp"
 
 #include "ClientState.hpp"
-#include "PacketResult.hpp"
 #include "NetworkEndpoint.hpp"
 #include "NetworkTranceiver.hpp"
 #include "Packet.hpp"
-
+#include "PacketResult.hpp"
+#include "UdpTransceiver.hpp"
 
 
 namespace rudp {
@@ -74,8 +74,8 @@ namespace rudp {
 	public:
 		Client(
 				uint16_t application_id,
-				std::shared_ptr<NetworkTransceiver> network_transceiver,
-				ClientMode client_mode = ClientMode::Threaded);
+				ClientMode client_mode = ClientMode::Threaded,
+				std::shared_ptr<NetworkTransceiver> network_transceiver = std::make_shared<UdpTransceiver>());
 
 		[[nodiscard]] inline int GetAvailable() const;
 

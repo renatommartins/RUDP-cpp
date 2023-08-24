@@ -16,8 +16,8 @@ using rudp::utils::chrono::time_point_ms;
 namespace rudp {
 	Client::Client(
 		uint16_t application_id,
-		std::shared_ptr<NetworkTransceiver> network_transceiver,
-		ClientMode client_mode) :
+		ClientMode client_mode,
+		std::shared_ptr<NetworkTransceiver> network_transceiver) :
 		network_transceiver{std::move(network_transceiver)},
 		application_id{application_id},
 		client_mode{client_mode},
