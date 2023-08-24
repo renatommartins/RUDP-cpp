@@ -16,7 +16,7 @@ using std::expected;
 using std::vector;
 
 namespace rudp{
-	class UdpTransceiver : NetworkTransceiver {
+	class UdpTransceiver : public NetworkTransceiver {
 	private:
 		static constexpr size_t kIPV4Size = 8;
 		static constexpr size_t kIPV6Size = 28; //TODO: double-check this size
