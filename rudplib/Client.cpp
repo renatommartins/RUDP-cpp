@@ -351,4 +351,9 @@ namespace rudp {
 
 		network_transceiver->Transmit(send_data);
 	}
+
+	bool Client::CompareSequenceNumberGreaterThan(const uint16_t s1, const uint16_t s2) noexcept {
+		return ((s1 > s2) && (s1 - s2 <= 0xFFFFui16 / 2)) ||
+		       ((s1 < s2) && (s2 - s1 > 0xFFFFui16 / 2));;
+	}
 }

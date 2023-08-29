@@ -72,6 +72,7 @@ namespace rudp {
 				uint32_t ack,
 				PacketType type,
 				std::optional<std::vector<uint8_t>> data);
+		static bool CompareSequenceNumberGreaterThan(uint16_t s1, uint16_t s2) noexcept;
 	public:
 		explicit Client(
 				uint16_t application_id,
