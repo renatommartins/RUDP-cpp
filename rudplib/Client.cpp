@@ -65,6 +65,8 @@ namespace rudp {
 		local_endpoint = local;
 		remote_endpoint = remote;
 
+		state = ClientState::Disconnected;
+
 		if(client_mode == ClientMode::Threaded)
 			connection_thread = std::jthread{ConnectionUpdate, this};
 
@@ -72,7 +74,7 @@ namespace rudp {
 	}
 
 	void Client::Close() {
-		//TODO: send disconnection notification
+		state = ClientState::Disconnecting;
 		auto close_result = network_transceiver->Close();
 		//TODO: error checking
 	}
@@ -198,7 +200,6 @@ namespace rudp {
 				}
 
 				state = ClientState::Connected;
-				return GetTimePointNowMs() + 20ms;
 			}
 			case ClientState::Connected: {
 				while (network_transceiver->IsDataAvailable()) {
@@ -289,7 +290,7 @@ namespace rudp {
 					std::nullopt
 				);
 
-				state = ClientState::Disconnected;
+				state = ClientState::Invalid;
 				return std::unexpected(ClientUpdateError::Disconnected);
 			}
 			default:
@@ -317,7 +318,7 @@ namespace rudp {
 
 		if (received_packet == nullptr) { return nullptr; }
 		if (received_packet->app_id != application_id) { return nullptr; }
-		if (received_packet->sequence_number <= last_remote_sequence_number) { return nullptr; }
+		if (!CompareSequenceNumberGreaterThan(received_packet->sequence_number, last_remote_sequence_number)) { return nullptr; }
 
 		auto remote_sequence_number_increment =
 			received_packet->sequence_number - last_remote_sequence_number;
