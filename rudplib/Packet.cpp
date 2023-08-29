@@ -66,7 +66,8 @@ namespace rudp {
 			uint32_t ack,
 			PacketType type,
 			std::optional<std::vector<uint8_t>> data) {
-		auto packetSize = kMinPacketSize + data.value().size();
+		auto data_length = data.has_value()? data.value().size() : 0;
+		auto packetSize = kMinPacketSize + data_length;
 		auto packet = std::unique_ptr<Packet>(reinterpret_cast<Packet *>(malloc(packetSize)));
 
 		packet->app_id = app_id;
@@ -74,6 +75,7 @@ namespace rudp {
 		packet->ack_sequence_number = ack_sequence_number;
 		packet->ack = ack;
 		packet->type = type;
+		packet->data_length = data_length;
 
 		if (data.has_value()) {
 			packet->data_length = static_cast<uint16_t>(data.value().size());
